@@ -1,0 +1,11 @@
+--- ./doc/Makefile.in.docinst	2008-06-26 20:32:52.000000000 -0700
++++ ./doc/Makefile.in	2008-08-28 14:18:11.240452000 -0700
+@@ -612,7 +612,7 @@
+ 
+ info-am:
+ 
+-install-data-am: install-docDATA install-man
++install-data-am: install-man
+ 
+ install-dvi: install-dvi-recursive
+ 

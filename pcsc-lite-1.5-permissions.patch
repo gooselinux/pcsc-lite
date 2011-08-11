@@ -1,0 +1,49 @@
+diff -up ./src/pcscdaemon.c.permissions ./src/pcscdaemon.c
+--- ./src/pcscdaemon.c.permissions	2009-02-06 00:46:20.000000000 -0800
++++ ./src/pcscdaemon.c	2009-06-17 10:06:49.419656000 -0700
+@@ -438,7 +438,8 @@ int main(int argc, char **argv)
+ 	rv = SYS_Stat(PCSCLITE_EVENTS_DIR, &fStatBuf);
+ 	if (rv < 0)
+ 	{
+-		int mode = S_IRWXU | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH; /* 0755 */
++ 		/* 1733 : world writable + sticky bit */
++ 		int mode = S_IRWXU | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH | S_ISVTX;
+ 
+ 		rv = SYS_Mkdir(PCSCLITE_EVENTS_DIR, mode);
+ 		if (rv != 0)
+diff -up ./src/winscard_clnt.c.permissions ./src/winscard_clnt.c
+--- ./src/winscard_clnt.c.permissions	2009-02-06 00:46:20.000000000 -0800
++++ ./src/winscard_clnt.c	2009-06-17 10:07:32.392742000 -0700
+@@ -1717,7 +1717,7 @@ static long WaitForPcscdEvent(SCARDCONTE
+ {
+ 	char filename[FILENAME_MAX];
+ 	char buf[1];
+-	int fd;
++	int fd, r;
+ 	struct timeval tv, *ptv = NULL;
+ 	struct timeval before, after;
+ 	fd_set read_fd;
+@@ -1734,7 +1734,14 @@ static long WaitForPcscdEvent(SCARDCONTE
+ 
+ 	(void)snprintf(filename, sizeof(filename), "%s/event.%d.%ld",
+ 		PCSCLITE_EVENTS_DIR, SYS_GetPID(), hContext);
+-	(void)mkfifo(filename, 0644);
++	r = mkfifo(filename, 0644);
++ 	if (-1 == r)
++ 	{
++ 		Log2(PCSC_LOG_CRITICAL, "Can't create event fifo: %s", strerror(errno));
++ 		goto exit;
++ 	}
++ 
++
+ 	fd = SYS_OpenFile(filename, O_RDONLY | O_NONBLOCK, 0);
+ 
+ 	FD_ZERO(&read_fd);
+@@ -1755,6 +1762,7 @@ static long WaitForPcscdEvent(SCARDCONTE
+ 		dwTime -= diff/1000;
+ 	}
+ 
++exit:
+ 	return dwTime;
+ }
+ 

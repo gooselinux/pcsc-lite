@@ -1,0 +1,68 @@
+--- ./src/readerfactory.h	2009/01/02 15:19:59	3260
++++ ./src/readerfactory.h	2009/04/27 15:07:42	3466
+@@ -149,6 +149,7 @@
+ 	LONG RFCheckSharing(DWORD);
+ 	LONG RFLockSharing(DWORD);
+ 	LONG RFUnlockSharing(DWORD);
++	LONG RFUnlockAllSharing(DWORD);
+ 	LONG RFUnblockReader(PREADER_CONTEXT);
+ 	LONG RFUnblockContext(SCARDCONTEXT);
+ 	LONG RFLoadReader(PREADER_CONTEXT);
+--- ./src/readerfactory.c	2009/02/06 08:46:19	3304
++++ ./src/readerfactory.c	2009/04/27 15:07:42	3466
+@@ -37,6 +37,7 @@
+ #include "hotplug.h"
+ #include "strlcpycat.h"
+ #include "configfile.h"
++#include "utils.h"
+ 
+ #ifndef TRUE
+ #define TRUE 1
+@@ -467,6 +468,9 @@
+ 			sContext->psHandles[i].hCard = 0;
+ 
+ 		dwNumReadersContexts -= 1;
++
++		/* signal an event to clients */
++		StatSynchronize(NULL);
+ 	}
+ 
+ 	return SCARD_S_SUCCESS;
+@@ -974,6 +978,27 @@
+ 	return rv;
+ }
+ 
++LONG RFUnlockAllSharing(DWORD hCard)
++{
++	PREADER_CONTEXT rContext = NULL;
++	LONG rv;
++
++	rv = RFReaderInfoById(hCard, &rContext);
++	if (rv != SCARD_S_SUCCESS)
++		return rv;
++
++	(void)SYS_MutexLock(&LockMutex);
++	rv = RFCheckSharing(hCard);
++	if (SCARD_S_SUCCESS == rv)
++	{
++		rContext->LockCount = 0;
++		rContext->dwLockId = 0;
++	}
++	(void)SYS_MutexUnLock(&LockMutex);
++
++	return rv;
++}
++
+ LONG RFUnblockContext(SCARDCONTEXT hContext)
+ {
+ 	int i;
+--- ./src/winscard.c	2009/02/06 08:46:19	3304
++++ ./src/winscard.c	2009/04/27 15:10:48	3467
+@@ -873,7 +873,7 @@
+ 	/*
+ 	 * Unlock any blocks on this context
+ 	 */
+-	rv = RFUnlockSharing(hCard);
++	rv = RFUnlockAllSharing(hCard);
+ 	if (rv != SCARD_S_SUCCESS)
+ 		return rv;
